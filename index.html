@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web3 资产收益模拟器 (Pro)</title>
+    <style>
+        :root {
+            --bg-core: #0f1115;
+            --bg-card: #181b21;
+            --bg-input: #090a0c;
+
+            --text-primary: #ffffff;
+            --text-secondary: #8b9bb4;
+            --text-muted: #566072;
+
+            --color-yield: #6366f1; /* Indigo */
+            --color-dca: #f59e0b;   /* Amber/Bitcoin */
+            --color-trade: #10b981; /* Emerald */
+
+            --accent: #3b82f6;
+            --danger: #ef4444;
+
+            --radius: 12px;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; outline: none; }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-core);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .wrapper {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* --- Header --- */
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .balance-display {
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 4px;
+        }
+        .currency {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+        }
+        .main-input {
+            background: transparent;
+            border: none;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            width: 350px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            transition: 0.3s;
+        }
+        .main-input:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        /* --- Grid Layout --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 850px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+
+        /* --- Card Styles --- */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* --- Allocation Row --- */
+        .alloc-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 120px;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .alloc-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .icon-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* Allocation Controls */
+        .control-area {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .category-name { font-weight: 600; }
+        .category-percent { font-family: monospace; }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #2d3748;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        /* Custom Slider Colors */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+        .slider-yield::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--color-yield); }
+        .slider-dca::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--color-dca); }
+        .slider-trade::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--color-trade); }
+
+        .slider-yield { background: linear-gradient(90deg, var(--color-yield) var(--p), #2d3748 var(--p)); }
+        .slider-dca { background: linear-gradient(90deg, var(--color-dca) var(--p), #2d3748 var(--p)); }
+        .slider-trade { background: linear-gradient(90deg, var(--color-trade) var(--p), #2d3748 var(--p)); }
+
+
+        /* ROI Input Area */
+        .roi-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .roi-label { font-size: 0.75rem; color: var(--text-muted); }
+
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .input-wrapper::after {
+            content: '%';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .roi-field {
+            background: var(--bg-input);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            padding: 8px 24px 8px 10px;
+            border-radius: 6px;
+            width: 100%;
+            text-align: right;
+            font-weight: bold;
+        }
+        .roi-field:focus { border-color: var(--accent); }
+
+        /* Calculated Details below slider */
+        .calc-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            color: var(--text-secondary);
+        }
+
+        /* --- Right Column (Summary) --- */
+        .summary-box {
+            text-align: center;
+            padding: 30px 0;
+            position: relative;
+        }
+
+        /* Donut Chart */
+        .chart-wrapper {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+        svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+        circle {
+            fill: none;
+            stroke-width: 12;
+            transition: stroke-dasharray 0.6s ease;
+        }
+
+        .chart-inner {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .chart-apy-label { font-size: 0.8rem; color: var(--text-secondary); }
+        .chart-apy-val { font-size: 1.4rem; font-weight: 700; color: #fff; }
+
+        /* Final Numbers */
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            padding: 0 10px;
+        }
+        .result-label { color: var(--text-secondary); }
+        .result-val { font-weight: 600; font-family: monospace; }
+
+        .total-profit {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .profit-val {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #10b981;
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+            display: block;
+            margin-top: 8px;
+        }
+        .final-balance-label {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .final-balance-val {
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        /* Tags */
+        .tag {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+        .tag-yield { background: rgba(99, 102, 241, 0.2); color: var(--color-yield); }
+        .tag-dca { background: rgba(245, 158, 11, 0.2); color: var(--color-dca); }
+        .tag-trade { background: rgba(16, 185, 129, 0.2); color: var(--color-trade); }
+
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+
+    <!-- Header -->
+    <div class="header">
+        <h1>资产配置收益模拟</h1>
+        <div class="balance-display">
+            <span class="currency">$</span>
+            <input type="number" id="totalBalance" class="main-input" value="350419">
+        </div>
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Total Assets (USDT)</div>
+    </div>
+
+    <div class="dashboard-grid">
+
+        <!-- Left: Controls -->
+        <div class="card">
+            <div class="card-title">
+                <span>配置策略 & 预期年化</span>
+                <span style="font-size:0.8rem; color:var(--text-muted)">调整滑块与收益率</span>
+            </div>
+
+            <!-- Yield Section -->
+            <div class="alloc-row">
+                <div class="icon-box" style="color: var(--color-yield)">🏦</div>
+                <div class="control-area">
+                    <div class="control-header">
+                        <span class="category-name" style="color: var(--color-yield)">生息 (Stable Yield)</span>
+                        <span class="category-percent" id="pct-yield">50%</span>
+                    </div>
+                    <input type="range" class="slider-yield" id="range-yield" min="0" max="100" value="50">
+                    <div class="calc-details">
+                        <span>本金: <span id="amt-yield">$175,209</span></span>
+                        <span style="color: var(--color-yield)">预期盈利: <span id="prof-yield">+$17,520</span></span>
+                    </div>
+                </div>
+                <div class="roi-input-group">
+                    <span class="roi-label">预期年化</span>
+                    <div class="input-wrapper">
+                        <input type="number" id="roi-yield" class="roi-field" value="10">
+                    </div>
+                </div>
+            </div>
+
+            <!-- DCA Section -->
+            <div class="alloc-row">
+                <div class="icon-box" style="color: var(--color-dca)">₿</div>
+                <div class="control-area">
+                    <div class="control-header">
+                        <span class="category-name" style="color: var(--color-dca)">定投 (BTC DCA)</span>
+                        <span class="category-percent" id="pct-dca">30%</span>
+                    </div>
+                    <input type="range" class="slider-dca" id="range-dca" min="0" max="100" value="30">
+                    <div class="calc-details">
+                        <span>本金: <span id="amt-dca">$105,125</span></span>
+                        <span style="color: var(--color-dca)">预期盈利: <span id="prof-dca">+$52,562</span></span>
+                    </div>
+                </div>
+                <div class="roi-input-group">
+                    <span class="roi-label">预期涨幅</span>
+                    <div class="input-wrapper">
+                        <input type="number" id="roi-dca" class="roi-field" value="50">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trade Section -->
+            <div class="alloc-row">
+                <div class="icon-box" style="color: var(--color-trade)">📈</div>
+                <div class="control-area">
+                    <div class="control-header">
+                        <span class="category-name" style="color: var(--color-trade)">交易 (Trading)</span>
+                        <span class="category-percent" id="pct-trade">20%</span>
+                    </div>
+                    <input type="range" class="slider-trade" id="range-trade" min="0" max="100" value="20">
+                    <div class="calc-details">
+                        <span>本金: <span id="amt-trade">$70,083</span></span>
+                        <span style="color: var(--color-trade)">预期盈利: <span id="prof-trade">+$21,025</span></span>
+                    </div>
+                </div>
+                <div class="roi-input-group">
+                    <span class="roi-label">预期回报</span>
+                    <div class="input-wrapper">
+                        <input type="number" id="roi-trade" class="roi-field" value="30">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: Results -->
+        <div class="card summary-box">
+            <div class="card-title" style="justify-content: center;">年度收益预估</div>
+
+            <div class="chart-wrapper">
+                <svg viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="#2d3748" />
+                    <circle id="seg-yield" cx="50" cy="50" r="40" stroke="var(--color-yield)" stroke-dasharray="0 251" />
+                    <circle id="seg-dca" cx="50" cy="50" r="40" stroke="var(--color-dca)" stroke-dasharray="0 251" />
+                    <circle id="seg-trade" cx="50" cy="50" r="40" stroke="var(--color-trade)" stroke-dasharray="0 251" />
+                </svg>
+                <div class="chart-inner">
+                    <div class="chart-apy-label">综合年化</div>
+                    <div class="chart-apy-val" id="blended-apy">--%</div>
+                </div>
+            </div>
+
+            <div class="result-row">
+                <span class="result-label">生息盈利 <span class="tag tag-yield">稳健</span></span>
+                <span class="result-val" id="sum-prof-yield" style="color: var(--color-yield)">+0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">定投盈利 <span class="tag tag-dca">成长</span></span>
+                <span class="result-val" id="sum-prof-dca" style="color: var(--color-dca)">+0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">交易盈利 <span class="tag tag-trade">激进</span></span>
+                <span class="result-val" id="sum-prof-trade" style="color: var(--color-trade)">+0</span>
+            </div>
+
+            <div class="total-profit">
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">预期总利润 (Estimated Profit)</span>
+                <span class="profit-val" id="total-profit-val">+$0</span>
+            </div>
+
+            <div class="final-balance-label">一年后总资产预估</div>
+            <div class="final-balance-val" id="final-balance">$0</div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- Data & State ---
+    const state = {
+        balance: 350419,
+        alloc: { yield: 50, dca: 30, trade: 20 },
+        roi: { yield: 10, dca: 50, trade: 30 }
+    };
+
+    const keys = ['yield', 'dca', 'trade'];
+
+    // --- Elements ---
+    const els = {
+        balance: document.getElementById('totalBalance'),
+        sliders: {},
+        rois: {},
+        labels: {},
+        amts: {},
+        profs: {},
+        segments: {},
+        sumProfs: {},
+        finalProfit: document.getElementById('total-profit-val'),
+        finalBalance: document.getElementById('final-balance'),
+        blendedApy: document.getElementById('blended-apy')
+    };
+
+    // Initialize Element References
+    keys.forEach(k => {
+        els.sliders[k] = document.getElementById(`range-${k}`);
+        els.rois[k] = document.getElementById(`roi-${k}`);
+        els.labels[k] = document.getElementById(`pct-${k}`);
+        els.amts[k] = document.getElementById(`amt-${k}`);
+        els.profs[k] = document.getElementById(`prof-${k}`);
+        els.segments[k] = document.getElementById(`seg-${k}`);
+        els.sumProfs[k] = document.getElementById(`sum-prof-${k}`);
+    });
+
+    // --- Formatting ---
+    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+    // --- Logic: Allocation Balancing ---
+    function updateAllocations(sourceKey) {
+        const newVal = parseInt(els.sliders[sourceKey].value);
+        const oldVal = state.alloc[sourceKey];
+        const diff = newVal - oldVal;
+
+        if (diff === 0) return;
+
+        // Identify other sliders
+        const others = keys.filter(k => k !== sourceKey);
+        const otherSum = others.reduce((acc, k) => acc + state.alloc[k], 0);
+
+        if (otherSum === 0) {
+            // Edge case: others are 0, force reduce them? Or just update state directly
+            // If increasing, we must take from somewhere. If decreasing, we add to others evenly.
+            if (newVal < oldVal) {
+                const give = (oldVal - newVal) / 2;
+                others.forEach(k => state.alloc[k] += give);
+            } else {
+                // Can't increase if others are 0 (sum is 100 already)
+                // Force lock UI
+                els.sliders[sourceKey].value = oldVal;
+                return;
+            }
+        } else {
+            // Proportional distribution
+            let remain = 100 - newVal;
+            // Safeguard
+            if (remain < 0) {
+                remain = 0;
+                state.alloc[sourceKey] = 100;
+                others.forEach(k => state.alloc[k] = 0);
+            } else {
+                state.alloc[sourceKey] = newVal;
+                let distributed = 0;
+                others.forEach((k, i) => {
+                    if (i === others.length - 1) {
+                        state.alloc[k] = remain - distributed;
+                    } else {
+                        const ratio = state.alloc[k] / otherSum;
+                        const share = Math.round(remain * ratio);
+                        state.alloc[k] = share;
+                        distributed += share;
+                    }
+                });
+            }
+        }
+
+        // Sync UI
+        keys.forEach(k => els.sliders[k].value = state.alloc[k]);
+        updateUI();
+    }
+
+    // --- Logic: Calculations ---
+    function calculate() {
+        state.balance = parseFloat(els.balance.value) || 0;
+        keys.forEach(k => {
+            state.roi[k] = parseFloat(els.rois[k].value) || 0;
+        });
+
+        let totalProfit = 0;
+        let weightedRoiSum = 0;
+
+        const results = {};
+
+        keys.forEach(k => {
+            const allocPct = state.alloc[k];
+            const amount = state.balance * (allocPct / 100);
+            const profit = amount * (state.roi[k] / 100);
+
+            totalProfit += profit;
+            weightedRoiSum += (state.roi[k] * allocPct); // for blended APY
+
+            results[k] = { amount, profit };
+        });
+
+        const blended = weightedRoiSum / 100;
+
+        return { results, totalProfit, blended };
+    }
+
+    // --- Logic: Render ---
+    function updateUI() {
+        const { results, totalProfit, blended } = calculate();
+
+        // 1. Update Text in Controls
+        keys.forEach(k => {
+            els.labels[k].innerText = state.alloc[k] + '%';
+            els.sliders[k].style.setProperty('--p', state.alloc[k] + '%');
+
+            els.amts[k].innerText = fmt.format(results[k].amount);
+
+            const p = results[k].profit;
+            els.profs[k].innerText = (p >= 0 ? '+' : '') + fmt.format(p);
+            els.profs[k].style.color = p >= 0 ? '' : '#ef4444';
+
+            // Summary Table
+            els.sumProfs[k].innerText = (p >= 0 ? '+' : '') + fmt.format(p);
+            els.sumProfs[k].style.color = p >= 0 ? '' : '#ef4444';
+        });
+
+        // 2. Update Chart (SVG Stroke)
+        const c = 251.2; // 2 * pi * 40
+        let offset = 0;
+        keys.forEach(k => {
+            const pct = state.alloc[k] / 100;
+            const len = c * pct;
+            els.segments[k].style.strokeDasharray = `${len} ${c}`;
+            els.segments[k].style.strokeDashoffset = -offset;
+            offset += len;
+        });
+
+        // 3. Global Totals
+        els.blendedApy.innerText = blended.toFixed(1) + '%';
+
+        els.finalProfit.innerText = (totalProfit >= 0 ? '+' : '') + fmt.format(totalProfit);
+        els.finalProfit.style.color = totalProfit >= 0 ? '#10b981' : '#ef4444';
+        els.finalProfit.style.textShadow = totalProfit >= 0 ? '0 0 20px rgba(16, 185, 129, 0.2)' : 'none';
+
+        els.finalBalance.innerText = fmt.format(state.balance + totalProfit);
+    }
+
+    // --- Event Listeners ---
+    els.balance.addEventListener('input', updateUI);
+
+    keys.forEach(k => {
+        // Slider Change
+        els.sliders[k].addEventListener('input', () => updateAllocations(k));
+        // ROI Change
+        els.rois[k].addEventListener('input', updateUI);
+    });
+
+    // Init
+    updateUI();
+
+</script>
+
+</body>
+</html>
